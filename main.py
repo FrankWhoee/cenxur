@@ -1,11 +1,23 @@
 import discord
 import sqlite3
 from threading import Timer
+from dotenv import load_dotenv
+import os
+from utils import create_env_template
 
 intents = discord.Intents.default()
 intents.message_content = True
 
 client = discord.Client(intents=intents)
+
+"""Checks for .env file and creates it if it doesn't exist."""
+if not os.path.exists(".env"):
+    print(".env file not found. Creating a template...")
+    create_env_template()
+else:
+    print(".env file already exists.")
+
+load_dotenv()
 
 con = sqlite3.connect("data.db")
 cur = con.cursor()
@@ -65,4 +77,13 @@ async def on_message(message):
     if message.content.startswith('$hello'):
         await message.channel.send('Hello!')
 
-client.run('')
+ENVIRONMENT = os.environ['ENVIRONMENT']
+PROD_KEY = os.environ["PROD_KEY"]
+DEV_KEY = os.environ["DEV_KEY"]
+
+if ENVIRONMENT == "prod":
+    client.run(PROD_KEY)
+elif ENVIRONMENT == "dev":
+    client.run(DEV_KEY)
+else:
+    print("Invalid environment")
