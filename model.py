@@ -13,6 +13,7 @@ class Model:
         self.unique_words = []
         self.n = 0
         self.d = 0
+        self.trained = False
     def train(self):
         con = sqlite3.connect(DATABASE_NAME)
         cur = con.cursor()
@@ -28,6 +29,12 @@ class Model:
             Y.append(i[3])
 
         Y = np.array(Y)
+        Y_nonzeros = np.count_nonzero(Y)
+
+        if Y_nonzeros == 0 or Y_nonzeros == len(Y):
+            print("Dataset cannot be used for training because both positive and negative samples are needed.")
+            return
+
 
         unique_words = set()
         for i in X_raw:
@@ -68,6 +75,8 @@ class Model:
             self.cond_prob_true.append(p_uw_flag)
             self.cond_prob_false.append(p_uw_nonflag)
 
+        self.trained = True
+
     def one_hot_encode(self, x_raw):
         x = np.zeros(self.d)
         for i_uw, uw in enumerate(self.unique_words):
@@ -90,10 +99,3 @@ class Model:
                 p_hat_nonflag *= self.cond_prob_false[i]
 
         return p_hat_nonflag, p_hat_flag
-
-test_sample = "america tank square"
-
-model = Model()
-
-model.train()
-print(model.predict(test_sample))

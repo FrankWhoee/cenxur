@@ -1,3 +1,5 @@
+import asyncio
+
 import discord
 import sqlite3
 from threading import Timer
@@ -36,33 +38,6 @@ CREATE TABLE IF NOT EXISTS messages (
 con.commit()
 con.close()
 
-classifier = Model()
-classifier.train()
-
-@client.event
-async def on_ready():
-    print(f'We have logged in as {client.user}')
-
-def add_message_to_db(message):
-    message_id = message.id
-    message_content = message.content
-    time_sent = message.created_at.timestamp()
-
-    red_squares = 0
-    green_squares = 0
-
-    for r in message.reactions:
-        if r.emoji == AFFIRMATIVE_EMOJI:
-            green_squares = r.count
-        elif r.emoji == NEGATIVE_EMOJI:
-            red_squares = r.count
-
-    classification = red_squares > green_squares
-
-    args = (message_id, message_content, time_sent, classification)
-    if red_squares != 1 or green_squares != 1:
-        execute_sql_query("INSERT INTO messages VALUES (?,?,?,?)", args)
-
 def execute_sql_query(query, args=None):
     con = sqlite3.connect(DATABASE_NAME)
     cur = con.cursor()
@@ -81,6 +56,38 @@ def get_table_size():
     res = execute_sql_query("SELECT COUNT(*) FROM messages;")
     return res[0][0]
 
+classifier = Model()
+classifier.train()
+
+@client.event
+async def on_ready():
+    print(f'We have logged in as {client.user}')
+
+async def add_message_to_db(message):
+    message_id = message.id
+    message_content = message.content
+    time_sent = message.created_at.timestamp()
+
+    red_squares = 0
+    green_squares = 0
+
+    for r in message.reactions:
+        if r.emoji == AFFIRMATIVE_EMOJI:
+            green_squares = r.count
+        elif r.emoji == NEGATIVE_EMOJI:
+            red_squares = r.count
+
+    classification = red_squares > green_squares
+
+    args = (message_id, message_content, time_sent, classification)
+    if red_squares != 1 or green_squares != 1:
+        execute_sql_query("INSERT INTO messages VALUES (?,?,?,?)", args)
+        classifier.train()
+    await message.add_reaction(LOCKED_EMOJI)
+
+def add_message_to_db_sync(message,loop):
+    asyncio.run_coroutine_threadsafe(add_message_to_db(message), loop)
+
 @client.event
 async def on_message(message):
     if message.author == client.user:
@@ -91,7 +98,10 @@ async def on_message(message):
         message_prefix = message_content[0]
         message_content = message_content[1:]
 
-        p_nonflag, p_flag = classifier.predict(message.content)
+        if classifier.trained:
+            p_nonflag, p_flag = classifier.predict(message.content)
+        else:
+            p_nonflag = p_flag = 0
         print(p_nonflag, p_flag)
         rng = random.random()
         if message_prefix == PREFIX:
@@ -103,7 +113,8 @@ async def on_message(message):
             await message.add_reaction(FLAG_EMOJI)
             await message.add_reaction(AFFIRMATIVE_EMOJI)
             await message.add_reaction(NEGATIVE_EMOJI)
-            Timer(VOTING_TIME, add_message_to_db, args=[message]).start()
+            loop = asyncio.get_running_loop()
+            Timer(VOTING_TIME, add_message_to_db_sync, args=[message,loop]).start()
 
 ENVIRONMENT = os.environ['ENVIRONMENT']
 PROD_KEY = os.environ["PROD_KEY"]
