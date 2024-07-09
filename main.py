@@ -5,15 +5,9 @@ from dotenv import load_dotenv
 import os
 from utils import create_env_template
 import random
+from Constants import *
+from model import Model
 
-# CONSTANTS
-VOTING_TIME = 600 # How long before voting closes on flagged messages in seconds
-AFFIRMATIVE_EMOJI = "🟩"
-NEGATIVE_EMOJI = "🟥"
-FLAG_EMOJI = "🚩"
-DATABASE_NAME = "data.db"
-FLAG_PROBABILITY = 0.1 # Probability that a message gets randomly flagged for data collection
-PREFIX = "!"
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -42,6 +36,9 @@ CREATE TABLE IF NOT EXISTS messages (
 con.commit()
 con.close()
 
+classifier = Model()
+classifier.train()
+
 @client.event
 async def on_ready():
     print(f'We have logged in as {client.user}')
@@ -63,8 +60,8 @@ def add_message_to_db(message):
     classification = red_squares > green_squares
 
     args = (message_id, message_content, time_sent, classification)
-
-    execute_sql_query("INSERT INTO messages VALUES (?,?,?,?)", args)
+    if red_squares != 1 or green_squares != 1:
+        execute_sql_query("INSERT INTO messages VALUES (?,?,?,?)", args)
 
 def execute_sql_query(query, args=None):
     con = sqlite3.connect(DATABASE_NAME)
@@ -94,10 +91,15 @@ async def on_message(message):
         message_prefix = message_content[0]
         message_content = message_content[1:]
 
+        p_nonflag, p_flag = classifier.predict(message.content)
+        print(p_nonflag, p_flag)
+        rng = random.random()
         if message_prefix == PREFIX:
             if message_content.startswith("dbsize"):
                 await message.channel.send(get_table_size())
-        elif random.random() <= FLAG_PROBABILITY:
+        elif p_nonflag < p_flag or rng <= FLAG_PROBABILITY:
+            if rng <= FLAG_PROBABILITY:
+                await message.add_reaction(DISCOVER_EMOJI)
             await message.add_reaction(FLAG_EMOJI)
             await message.add_reaction(AFFIRMATIVE_EMOJI)
             await message.add_reaction(NEGATIVE_EMOJI)
