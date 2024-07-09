@@ -39,7 +39,6 @@ CREATE TABLE IF NOT EXISTS messages (
     classification BOOLEAN
 );
 """)
-
 con.commit()
 con.close()
 
@@ -48,9 +47,6 @@ async def on_ready():
     print(f'We have logged in as {client.user}')
 
 def add_message_to_db(message):
-    con = sqlite3.connect(DATABASE_NAME)
-    cur = con.cursor()
-
     message_id = message.id
     message_content = message.content
     time_sent = message.created_at.timestamp()
@@ -68,28 +64,44 @@ def add_message_to_db(message):
 
     args = (message_id, message_content, time_sent, classification)
 
-    cur.execute("INSERT INTO messages VALUES (?,?,?,?)", args)
-    con.commit()
-    con.close()
+    execute_sql_query("INSERT INTO messages VALUES (?,?,?,?)", args)
 
-def get_table_size():
+def execute_sql_query(query, args=None):
     con = sqlite3.connect(DATABASE_NAME)
     cur = con.cursor()
-    res = cur.execute("SELECT COUNT(*) FROM messages;")
-    return res.fetchone()[0]
+
+    if args is None:
+        res = cur.execute(query)
+    else:
+        res = cur.execute(query, args)
+
+    res = res.fetchall()
+    con.commit()
+    con.close()
+    return res
+
+def get_table_size():
+    res = execute_sql_query("SELECT COUNT(*) FROM messages;")
+    return res[0][0]
 
 @client.event
 async def on_message(message):
     if message.author == client.user:
         return
 
-    if message.content.startswith(PREFIX + "dbsize"):
-        await message.channel.send(get_table_size())
-    elif random.random() <= FLAG_PROBABILITY:
-        await message.add_reaction(FLAG_EMOJI)
-        await message.add_reaction(AFFIRMATIVE_EMOJI)
-        await message.add_reaction(NEGATIVE_EMOJI)
-        Timer(VOTING_TIME, add_message_to_db, args=[message]).start()
+    if len(message.content) > 0:
+        message_content = message.content
+        message_prefix = message_content[0]
+        message_content = message_content[1:]
+
+        if message_prefix == PREFIX:
+            if message_content.startswith("dbsize"):
+                await message.channel.send(get_table_size())
+        elif random.random() <= FLAG_PROBABILITY:
+            await message.add_reaction(FLAG_EMOJI)
+            await message.add_reaction(AFFIRMATIVE_EMOJI)
+            await message.add_reaction(NEGATIVE_EMOJI)
+            Timer(VOTING_TIME, add_message_to_db, args=[message]).start()
 
 ENVIRONMENT = os.environ['ENVIRONMENT']
 PROD_KEY = os.environ["PROD_KEY"]
