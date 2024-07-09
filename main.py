@@ -5,6 +5,14 @@ from dotenv import load_dotenv
 import os
 from utils import create_env_template
 
+
+# CONSTANTS
+VOTING_TIME = 600 # How long before voting closes on flagged messages in seconds
+AFFIRMATIVE_EMOJI = "🟩"
+NEGATIVE_EMOJI = "🟥"
+FLAG_EMOJI = "🚩"
+DATABASE_NAME = "data.db"
+
 intents = discord.Intents.default()
 intents.message_content = True
 
@@ -19,7 +27,7 @@ else:
 
 load_dotenv()
 
-con = sqlite3.connect("data.db")
+con = sqlite3.connect(DATABASE_NAME)
 cur = con.cursor()
 cur.execute("""
 CREATE TABLE IF NOT EXISTS messages (
@@ -38,7 +46,7 @@ async def on_ready():
     print(f'We have logged in as {client.user}')
 
 def add_message_to_db(message):
-    con = sqlite3.connect("data.db")
+    con = sqlite3.connect(DATABASE_NAME)
     cur = con.cursor()
 
     message_id = message.id
@@ -49,9 +57,9 @@ def add_message_to_db(message):
     green_squares = 0
 
     for r in message.reactions:
-        if r.emoji == "🟩":
+        if r.emoji == AFFIRMATIVE_EMOJI:
             green_squares = r.count
-        elif r.emoji == "🟥":
+        elif r.emoji == NEGATIVE_EMOJI:
             red_squares = r.count
 
     classification = red_squares > green_squares
@@ -69,10 +77,10 @@ async def on_message(message):
         return
 
     # react to message with a red flag
-    await message.add_reaction("🚩")
-    await message.add_reaction("🟩")
-    await message.add_reaction("🟥")
-    Timer(5, add_message_to_db, args=[message]).start()
+    await message.add_reaction(FLAG_EMOJI)
+    await message.add_reaction(AFFIRMATIVE_EMOJI)
+    await message.add_reaction(NEGATIVE_EMOJI)
+    Timer(VOTING_TIME, add_message_to_db, args=[message]).start()
 
     if message.content.startswith('$hello'):
         await message.channel.send('Hello!')
