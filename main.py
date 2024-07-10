@@ -105,8 +105,13 @@ async def on_message(message):
         print(p_nonflag, p_flag)
         rng = random.random()
         if message_prefix == PREFIX:
-            if message_content.startswith("dbsize"):
-                await message.channel.send(get_table_size())
+            if message_content.startswith("model"):
+                embed = discord.Embed(title="Model Info", description="Model is trained." if classifier.trained else "Model is untrained", color=0xff0000 if classifier.trained else 0x000000)
+                embed.set_thumbnail(url="https://raw.githubusercontent.com/FrankWhoee/cenxur/main/cenxur.GIF")
+                embed.add_field(name="Samples", value=classifier.n, inline=False)
+                embed.add_field(name="Parameters (unique words)", value=classifier.d, inline=False)
+                embed.add_field(name="Proportion of Samples Flagged", value=classifier.p_flag, inline=False)
+                await message.channel.send(embed=embed)
         elif p_nonflag < p_flag or rng <= FLAG_PROBABILITY:
             if rng <= FLAG_PROBABILITY:
                 await message.add_reaction(DISCOVER_EMOJI)
