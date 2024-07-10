@@ -80,7 +80,7 @@ async def add_message_to_db(message):
     classification = red_squares > green_squares
 
     args = (message_id, message_content, time_sent, classification)
-    if red_squares != 1 or green_squares != 1:
+    if red_squares != green_squares:
         execute_sql_query("INSERT INTO messages VALUES (?,?,?,?)", args)
         classifier.train()
     await message.add_reaction(LOCKED_EMOJI)
@@ -112,6 +112,24 @@ async def on_message(message):
                 embed.add_field(name="Parameters (unique words)", value=classifier.d, inline=False)
                 embed.add_field(name="Proportion of Samples Flagged", value=classifier.p_flag, inline=False)
                 await message.channel.send(embed=embed)
+            if message_content.startswith("test"):
+                message_content = message_content[4:]
+                if classifier.trained:
+                    p_nonflag, p_flag = classifier.predict(message_content)
+                    if p_nonflag == 0:
+                        ratio = "DIVBYZERO"
+                    else:
+                        ratio = p_flag/p_nonflag
+                    embed = discord.Embed(title="Test prediction", description=message_content, color=0xff0000)
+                    embed.set_thumbnail(url="https://raw.githubusercontent.com/FrankWhoee/cenxur/main/cenxur.GIF")
+                    embed.add_field(name="Probability of good message", value=p_nonflag, inline=True)
+                    embed.add_field(name="Probability of bad message", value=p_flag, inline=True)
+                    embed.add_field(name="p_bad/p_good", value=ratio, inline=False)
+                    await message.channel.send(embed=embed)
+                else:
+                    embed = discord.Embed(title="Model is not yet trained.", description="More data is required.", color=0xff0000)
+                    embed.set_thumbnail(url="https://raw.githubusercontent.com/FrankWhoee/cenxur/main/cenxur.GIF")
+                    await message.channel.send(embed=embed)
         elif p_nonflag < p_flag or rng <= FLAG_PROBABILITY:
             if rng <= FLAG_PROBABILITY:
                 await message.add_reaction(DISCOVER_EMOJI)
