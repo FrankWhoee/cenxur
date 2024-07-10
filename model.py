@@ -89,10 +89,6 @@ class Model:
 
         p_hat_flag = self.p_flag
         p_hat_nonflag = self.p_nonflag
-        print(self.unique_words)
-        print(self.cond_prob_nonflag)
-        print(self.cond_prob_flag)
-        print(x)
         for i, x_i in enumerate(x):
             if x_i == 0:
                 p_hat_flag *= 1 - self.cond_prob_flag[i]
