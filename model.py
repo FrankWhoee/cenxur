@@ -2,18 +2,19 @@ import numpy as np
 import sqlite3
 from Constants import *
 
+
 class Model:
 
-
     def __init__(self):
-        self.cond_prob_true = []
-        self.cond_prob_false = []
+        self.cond_prob_flag = []
+        self.cond_prob_nonflag = []
         self.p_flag = 0
         self.p_nonflag = 0
         self.unique_words = []
         self.n = 0
         self.d = 0
         self.trained = False
+
     def train(self):
         con = sqlite3.connect(DATABASE_NAME)
         cur = con.cursor()
@@ -35,7 +36,6 @@ class Model:
             print("Dataset cannot be used for training because both positive and negative samples are needed.")
             return
 
-
         unique_words = set()
         for i in X_raw:
             for j in i.split(" "):
@@ -44,11 +44,11 @@ class Model:
         self.unique_words.sort()
 
         self.n = len(X_raw)
-        self.d = len(unique_words)
+        self.d = len(self.unique_words)
 
         X = np.zeros((self.n, self.d))
-        for i_x,x in enumerate(X_raw):
-            for i_uw,uw in enumerate(unique_words):
+        for i_x, x in enumerate(X_raw):
+            for i_uw, uw in enumerate(self.unique_words):
                 if uw in x:
                     X[i_x][i_uw] = 1
 
@@ -58,22 +58,22 @@ class Model:
         self.p_flag = p_flag / len(Y)
         self.p_nonflag = p_nonflag / len(Y)
 
-        self.cond_prob_true = []
-        self.cond_prob_false = []
+        self.cond_prob_flag = []
+        self.cond_prob_nonflag = []
 
-        for i,uw in enumerate(unique_words):
-            mask_flag = Y == 1
-            mask_nonflag = Y == 0
+        mask_flag = Y == 1
+        mask_nonflag = Y == 0
 
-            masked_X_flag = X[mask_flag]
-            masked_X_nonflag = X[mask_nonflag]
+        masked_X_flag = X[mask_flag]
+        masked_X_nonflag = X[mask_nonflag]
 
-            p_uw_flag = np.count_nonzero(masked_X_flag[:,i] == 1) / len(masked_X_flag)
+        for i, uw in enumerate(unique_words):
+            p_uw_flag = np.count_nonzero(masked_X_flag[:, i] == 1) / len(masked_X_flag)
 
-            p_uw_nonflag = np.count_nonzero(masked_X_nonflag[:,i] == 1) / len(masked_X_nonflag)
+            p_uw_nonflag = np.count_nonzero(masked_X_nonflag[:, i] == 1) / len(masked_X_nonflag)
 
-            self.cond_prob_true.append(p_uw_flag)
-            self.cond_prob_false.append(p_uw_nonflag)
+            self.cond_prob_flag.append(p_uw_flag)
+            self.cond_prob_nonflag.append(p_uw_nonflag)
 
         self.trained = True
 
@@ -89,13 +89,16 @@ class Model:
 
         p_hat_flag = self.p_flag
         p_hat_nonflag = self.p_nonflag
-
+        print(self.unique_words)
+        print(self.cond_prob_nonflag)
+        print(self.cond_prob_flag)
+        print(x)
         for i, x_i in enumerate(x):
             if x_i == 0:
-                p_hat_flag *= 1 - self.cond_prob_true[i]
-                p_hat_nonflag *= 1 - self.cond_prob_false[i]
+                p_hat_flag *= 1 - self.cond_prob_flag[i]
+                p_hat_nonflag *= 1 - self.cond_prob_nonflag[i]
             else:
-                p_hat_flag *= self.cond_prob_true[i]
-                p_hat_nonflag *= self.cond_prob_false[i]
+                p_hat_flag *= self.cond_prob_flag[i]
+                p_hat_nonflag *= self.cond_prob_nonflag[i]
 
         return p_hat_nonflag, p_hat_flag
