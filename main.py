@@ -5,7 +5,7 @@ import sqlite3
 from threading import Timer
 from dotenv import load_dotenv
 import os
-from utils import create_env_template
+from utils import *
 import random
 from Constants import *
 from model import Model
@@ -111,8 +111,9 @@ async def on_message(message):
                 embed.add_field(name="Samples", value=classifier.n, inline=False)
                 embed.add_field(name="Parameters (unique words)", value=classifier.d, inline=False)
                 embed.add_field(name="Proportion of Samples Flagged", value=classifier.p_flag, inline=False)
+                embed.set_footer(text=hex(classifier.train_hash))
                 await message.channel.send(embed=embed)
-            if message_content.startswith("test"):
+            elif message_content.startswith("test"):
                 message_content = message_content[4:]
                 if classifier.trained:
                     p_nonflag, p_flag = classifier.predict(message_content)
@@ -125,12 +126,21 @@ async def on_message(message):
                     embed.add_field(name="Probability of good message", value=p_nonflag, inline=True)
                     embed.add_field(name="Probability of bad message", value=p_flag, inline=True)
                     embed.add_field(name="p_bad/p_good", value=ratio, inline=False)
+                    embed.set_footer(text=hex(classifier.train_hash))
                     await message.channel.send(embed=embed)
                 else:
-                    embed = discord.Embed(title="Model is not yet trained.", description="More data is required.", color=0xff0000)
+                    embed = discord.Embed(title="Model is not yet trained.", description="More data is required.", color=0x000000)
                     embed.set_thumbnail(url="https://raw.githubusercontent.com/FrankWhoee/cenxur/main/cenxur.GIF")
+                    embed.set_footer(text=hex(classifier.train_hash))
                     await message.channel.send(embed=embed)
-        elif p_nonflag < p_flag or rng <= FLAG_PROBABILITY:
+            elif message_content.startswith("train"):
+                classifier.train()
+                embed = discord.Embed(title="Training manually triggered.", description="Model has been retrained." if classifier.trained else "More data is required. Model is not trained.", color=0xff0000 if classifier.trained else 0x000000)
+                embed.set_thumbnail(url="https://raw.githubusercontent.com/FrankWhoee/cenxur/main/cenxur.GIF")
+                embed.set_footer(text=hex(classifier.train_hash))
+                await message.channel.send(embed=embed)
+
+        elif not is_url(message.content) and (p_nonflag < p_flag or rng <= FLAG_PROBABILITY):
             if rng <= FLAG_PROBABILITY:
                 await message.add_reaction(DISCOVER_EMOJI)
             await message.add_reaction(FLAG_EMOJI)

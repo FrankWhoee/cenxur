@@ -8,3 +8,4 @@ LOCKED_EMOJI = "🔒" # Reacts with this emoji to indicate that this message can
 DATABASE_NAME = "data.db"
 FLAG_PROBABILITY = 0.1 # Probability that a message gets randomly flagged for data collection
 PREFIX = "!"
+HASH_LENGTH = 2**16

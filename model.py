@@ -1,7 +1,7 @@
 import numpy as np
 import sqlite3
 from Constants import *
-
+from utils import is_url
 
 class Model:
 
@@ -14,6 +14,7 @@ class Model:
         self.n = 0
         self.d = 0
         self.trained = False
+        self.train_hash = 0
 
     def train(self):
         con = sqlite3.connect(DATABASE_NAME)
@@ -23,11 +24,15 @@ class Model:
         con.commit()
         con.close()
 
+        self.train_hash = 0
+
         X_raw = []
         Y = []
         for i in res:
             X_raw.append(i[1])
             Y.append(i[3])
+
+            self.train_hash += hash(i[1]) % HASH_LENGTH
 
         Y = np.array(Y)
         Y_nonzeros = np.count_nonzero(Y)
@@ -39,7 +44,8 @@ class Model:
         unique_words = set()
         for i in X_raw:
             for j in i.split(" "):
-                unique_words.add(j)
+                if not is_url(j):
+                    unique_words.add(j)
         self.unique_words = list(unique_words)
         self.unique_words.sort()
 
