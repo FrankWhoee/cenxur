@@ -3,6 +3,8 @@
 # cenxur
 A Discord bot that flags inappropriate messages but personalised to your server.
 
+![Demo](./cenxurdemo.GIF)
+
 Here's how Cenxur works:
 1. Cenxur flags an inappropriate message
 2. Your users or moderators vote on whether that message was *actually* inappropriate
